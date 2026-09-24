@@ -1,58 +1,73 @@
 # Photogrammetric Space Resection
 
-Estimate a camera's **exterior orientation** — position \((X0, Y0, Z0)\) and rotation \((omega, phi, kappa)\) — from 3D control points and their corresponding 2D image coordinates.
+Estimate a camera's **exterior orientation** — position (`X0`, `Y0`, `Z0`) and rotation (`omega`, `phi`, `kappa`) — from 3D control points and their corresponding 2D image coordinates.
 
 This project originated from a graduate **Close-Range Photogrammetry** assignment and was refactored into a small, reproducible Python project.
 
 ## Method Overview
 
-This implementation estimates the six exterior-orientation parameters of a camera:
+The implementation estimates the six exterior-orientation parameters of a camera:
 
-- **Position:** `X0`, `Y0`, `Z0`
-- **Rotation:** `omega`, `phi`, `kappa`
+* **Position:** `X0`, `Y0`, `Z0`
+* **Rotation:** `omega`, `phi`, `kappa`
 
-### Processing pipeline
+### Processing Pipeline
 
-1. Transform object-space 3D points into the camera coordinate system using the **omega–phi–kappa** rotation model.
+```mermaid
+flowchart LR
+    A["3D Control Points<br/>(X, Y, Z)"] --> B["Camera Coordinate<br/>Transformation"]
+    B --> C["Collinearity<br/>Equations"]
+    C --> D["Lens<br/>Distortion"]
+    D --> E["Predicted Image<br/>Coordinates"]
+    E --> F["Reprojection<br/>Residuals"]
+    F --> G["Nonlinear<br/>Least Squares"]
+    G --> H["Estimated<br/>Camera Pose"]
+```
+
+The processing workflow is:
+
+1. Transform object-space 3D points into the camera coordinate system using the **omega–phi–kappa rotation model**.
 2. Compute normalized image coordinates using the **photogrammetric collinearity equations**.
-3. Apply **radial** and **tangential** lens distortion.
-4. Convert distorted normalized coordinates into image-space pixel coordinates using focal length and principal point.
-5. Estimate the unknown exterior-orientation parameters by minimizing reprojection error with **nonlinear least squares (Levenberg–Marquardt)**.
+3. Apply radial and tangential lens distortion.
+4. Convert the coordinates into image-space pixel coordinates.
+5. Estimate the exterior-orientation parameters by minimizing reprojection error using **nonlinear least squares**.
 
-### Input and output
+### Inputs
 
-**Inputs**
-- 3D ground/control points
-- 2D image coordinates
-- Known camera intrinsics
+* 3D ground/control points
+* Corresponding 2D image coordinates
+* Known camera intrinsics
 
-**Outputs**
-- Estimated camera position: `X0`, `Y0`, `Z0`
-- Estimated camera rotation: `omega`, `phi`, `kappa`
-- Reprojection RMSE in pixels
+### Outputs
 
-## Why this project?
+* Camera position: `X0`, `Y0`, `Z0`
+* Camera rotation: `omega`, `phi`, `kappa`
+* Reprojection RMSE
 
-Space resection is a core problem in photogrammetry and camera geometry: given known 3D–2D correspondences and camera intrinsics, recover the camera pose that best explains the observed image measurements.
+## Why This Project?
 
-The implementation uses:
+Space resection is a fundamental problem in **photogrammetry and 3D computer vision**.
 
-- Photogrammetric collinearity equations
-- Omega–Phi–Kappa rotation convention
-- Radial lens distortion (`k1`, `k2`, `k3`)
-- Tangential lens distortion (`p1`, `p2`)
-- Nonlinear least-squares adjustment (Levenberg–Marquardt)
-- Reprojection RMSE for accuracy assessment
+Given known 3D–2D correspondences and camera intrinsics, the goal is to recover the camera pose that best explains the observed image measurements.
 
-The distortion implementation supports both **Metashape** and **OpenCV** tangential-coefficient conventions.
+The implementation includes:
 
-## Repository structure
+* Photogrammetric collinearity equations
+* Omega–Phi–Kappa rotation convention
+* Radial lens distortion (`k1`, `k2`, `k3`)
+* Tangential lens distortion (`p1`, `p2`)
+* Nonlinear least-squares adjustment
+* Reprojection RMSE for accuracy assessment
+* Metashape and OpenCV tangential-distortion conventions
+
+## Repository Structure
 
 ```text
 photogrammetric-space-resection/
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
+├── pose_recovery.png
 ├── src/
 │   └── space_resection.py
 ├── examples/
@@ -69,7 +84,7 @@ cd photogrammetric-space-resection
 pip install -r requirements.txt
 ```
 
-## Quick start
+## Quick Start
 
 ```python
 import numpy as np
@@ -110,84 +125,109 @@ result = solve_space_resection(
 print(result)
 ```
 
-Angles in `initial_guess` and the returned result are in **degrees**.
+Angles in `initial_guess` and the returned result are expressed in **degrees**.
 
-## Reproducible synthetic validation
+## Synthetic Validation
 
-Run:
+A reproducible validation experiment is included in:
+
+`examples/synthetic_demo.py`
+
+Run it with:
 
 ```bash
 python examples/synthetic_demo.py
 ```
 
-The demo creates synthetic 3D control points, projects them using a known camera pose, adds small image noise, and then estimates the pose again.
+The experiment:
 
-Run the test:
+* defines a camera with known pose and intrinsics
+* generates 3D control points
+* projects them into image space
+* adds small image-coordinate noise
+* estimates the camera pose again
+
+### Pose Recovery Results
+
+| Parameter   | True Value | Estimated Value | Absolute Error |
+| ----------- | ---------: | --------------: | -------------: |
+| X0          |     0.6000 |          0.5986 |         0.0014 |
+| Y0          |    -0.4000 |         -0.4010 |         0.0010 |
+| Z0          |     8.0000 |          8.0004 |         0.0004 |
+| omega (deg) |     2.0000 |          2.0071 |         0.0071 |
+| phi (deg)   |    -3.0000 |         -3.0098 |         0.0098 |
+| kappa (deg) |     1.2000 |          1.1935 |         0.0065 |
+
+**Reprojection RMSE: 0.0966 px**
+
+The estimated camera pose closely matches the known synthetic ground truth.
+
+### 3D Visualization
+
+The figure below shows the synthetic 3D control points together with the true and estimated camera positions.
+
+![Synthetic camera pose recovery](pose_recovery.png)
+
+## Testing
+
+Run the automated test with:
 
 ```bash
 python -m unittest tests/test_synthetic.py
 ```
-## Synthetic validation summary
 
-A reproducible synthetic experiment is included in `examples/synthetic_demo.py`.
+The noise-free synthetic pose-recovery test verifies that the implementation can recover the known camera pose to numerical precision.
 
-In this demo:
+## Camera Model
 
-- A synthetic camera with known intrinsics and distortion is defined
-- A set of 3D control points is generated
-- The points are projected into image space using a known camera pose
-- Small image noise is added
-- The solver estimates the pose back from the noisy observations
+For each 3D point, coordinates are transformed from the object coordinate system into the camera coordinate system.
 
-### Result
+Normalized image coordinates are then computed using the collinearity equations.
 
-The solver is able to recover the camera pose with **sub-pixel reprojection accuracy** on the synthetic example.
+Lens distortion is applied in normalized coordinates before conversion to image-space pixels using focal length and principal point.
 
-- **Reprojection RMSE:** approximately **0.10 px**
-- **Validation type:** known-pose synthetic recovery
-- **Unit test status:** passed
+> **Note:** Metashape and OpenCV use different conventions for the two tangential-distortion coefficients. The implementation allows the convention to be selected explicitly.
 
-This gives a controlled verification that the implementation is numerically consistent before applying it to real measurements.
+## Current Scope
 
-## Camera model
+This public version contains the verified **collinearity-equation / nonlinear least-squares** implementation.
 
-For a 3D point, coordinates are first transformed from the object coordinate system into the camera coordinate system. Ideal normalized image coordinates are then obtained from the collinearity model. Lens distortion is applied in normalized coordinates, followed by conversion to pixel coordinates using focal length and principal point.
+The original coursework also compared space resection against **Direct Linear Transformation (DLT)**.
 
-> **Note:** Metashape and OpenCV use different placements/naming conventions for the two tangential distortion coefficients. Select the convention that matches the source of your calibration parameters.
+A cleaned and independently validated DLT implementation may be added as a future extension.
 
-## Current scope
+## Research Relevance
 
-This first public version contains the verified **collinearity / nonlinear least-squares** solution.
+This project represents part of my transition from **photogrammetry** toward **3D computer vision and geometric perception**.
 
-The original coursework also compared the result against **Direct Linear Transformation (DLT)**. A cleaned and independently validated DLT implementation can be added as a later extension rather than publishing an unverified draft.
+It demonstrates practical experience with:
 
-## Why this project matters for my research
+* Camera geometry
+* Photogrammetric modeling
+* 3D coordinate transformations
+* Lens-distortion modeling
+* Nonlinear optimization
+* Scientific Python
+* Reproducible computational experiments
 
-This project reflects my academic transition from **photogrammetry** toward **3D computer vision** and **camera geometry**.
+My broader research interests include:
 
-It demonstrates hands-on experience with:
+* 3D Computer Vision
+* Point Cloud Processing
+* Deep Learning
+* Human/Object Tracking
+* LiDAR Perception
+* Photogrammetry
 
-- camera modeling
-- photogrammetric collinearity equations
-- nonlinear optimization
-- lens-distortion modeling
-- reproducible scientific Python workflows
+## Academic Context
 
-This repository is also aligned with my broader research interests in:
-
-- 3D Computer Vision
-- Point Cloud Processing
-- Deep Learning
-- Human/Object Tracking
-- Photogrammetry
-
-## Academic context
-
-Graduate coursework in Close-Range Photogrammetry  
+Graduate coursework in **Close-Range Photogrammetry**
 K. N. Toosi University of Technology
 
 ## Author
 
-**Reza Pourali**  
-M.Sc. Photogrammetry  
-Research interests: 3D Computer Vision, Point Clouds, Deep Learning, Photogrammetry
+**Reza Pourali**
+M.Sc. Student in Photogrammetry
+K. N. Toosi University of Technology
+
+Research interests: **3D Computer Vision • Point Clouds • Deep Learning • Photogrammetry**
