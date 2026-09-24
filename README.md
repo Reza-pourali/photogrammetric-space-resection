@@ -1,6 +1,6 @@
 # Photogrammetric Space Resection
 
-Estimate a camera's **exterior orientation** — position \((X_0,Y_0,Z_0)\) and rotation \((\omega,\phi,\kappa)\) — from 3D control points and their corresponding 2D image coordinates.
+Estimate a camera's **exterior orientation** — position \((X0, Y0, Z0)\) and rotation \((omega, phi, kappa)\) — from 3D control points and their corresponding 2D image coordinates.
 
 This project originated from a graduate **Close-Range Photogrammetry** assignment and was refactored into a small, reproducible Python project.
 
