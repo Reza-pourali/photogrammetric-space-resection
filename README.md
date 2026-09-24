@@ -4,6 +4,33 @@ Estimate a camera's **exterior orientation** — position \((X0, Y0, Z0)\) and r
 
 This project originated from a graduate **Close-Range Photogrammetry** assignment and was refactored into a small, reproducible Python project.
 
+## Method Overview
+
+This implementation estimates the six exterior-orientation parameters of a camera:
+
+- **Position:** `X0`, `Y0`, `Z0`
+- **Rotation:** `omega`, `phi`, `kappa`
+
+### Processing pipeline
+
+1. Transform object-space 3D points into the camera coordinate system using the **omega–phi–kappa** rotation model.
+2. Compute normalized image coordinates using the **photogrammetric collinearity equations**.
+3. Apply **radial** and **tangential** lens distortion.
+4. Convert distorted normalized coordinates into image-space pixel coordinates using focal length and principal point.
+5. Estimate the unknown exterior-orientation parameters by minimizing reprojection error with **nonlinear least squares (Levenberg–Marquardt)**.
+
+### Input and output
+
+**Inputs**
+- 3D ground/control points
+- 2D image coordinates
+- Known camera intrinsics
+
+**Outputs**
+- Estimated camera position: `X0`, `Y0`, `Z0`
+- Estimated camera rotation: `omega`, `phi`, `kappa`
+- Reprojection RMSE in pixels
+
 ## Why this project?
 
 Space resection is a core problem in photogrammetry and camera geometry: given known 3D–2D correspondences and camera intrinsics, recover the camera pose that best explains the observed image measurements.
@@ -100,6 +127,27 @@ Run the test:
 ```bash
 python -m unittest tests/test_synthetic.py
 ```
+## Synthetic validation summary
+
+A reproducible synthetic experiment is included in `examples/synthetic_demo.py`.
+
+In this demo:
+
+- A synthetic camera with known intrinsics and distortion is defined
+- A set of 3D control points is generated
+- The points are projected into image space using a known camera pose
+- Small image noise is added
+- The solver estimates the pose back from the noisy observations
+
+### Result
+
+The solver is able to recover the camera pose with **sub-pixel reprojection accuracy** on the synthetic example.
+
+- **Reprojection RMSE:** approximately **0.10 px**
+- **Validation type:** known-pose synthetic recovery
+- **Unit test status:** passed
+
+This gives a controlled verification that the implementation is numerically consistent before applying it to real measurements.
 
 ## Camera model
 
@@ -112,6 +160,26 @@ For a 3D point, coordinates are first transformed from the object coordinate sys
 This first public version contains the verified **collinearity / nonlinear least-squares** solution.
 
 The original coursework also compared the result against **Direct Linear Transformation (DLT)**. A cleaned and independently validated DLT implementation can be added as a later extension rather than publishing an unverified draft.
+
+## Why this project matters for my research
+
+This project reflects my academic transition from **photogrammetry** toward **3D computer vision** and **camera geometry**.
+
+It demonstrates hands-on experience with:
+
+- camera modeling
+- photogrammetric collinearity equations
+- nonlinear optimization
+- lens-distortion modeling
+- reproducible scientific Python workflows
+
+This repository is also aligned with my broader research interests in:
+
+- 3D Computer Vision
+- Point Cloud Processing
+- Deep Learning
+- Human/Object Tracking
+- Photogrammetry
 
 ## Academic context
 
